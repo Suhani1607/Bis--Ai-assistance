@@ -1,4 +1,4 @@
-# BIS AI Assistant — Smart India Hackathon
+# BIS AI Assistant 
 
 An AI-powered conversational assistant for the Bureau of Indian Standards (BIS) built with RAG, clause-level citations, and multilingual support.
 

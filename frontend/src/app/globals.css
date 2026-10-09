@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bis-orange: #ea580c;
+  --bis-navy: #1d4ed8;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+  /* Prose in chat bubbles */
+  .chat-prose p { margin-bottom: 0.6rem; }
+  .chat-prose ul, .chat-prose ol { margin: 0.4rem 0 0.6rem 1.2rem; }
+  .chat-prose li { margin-bottom: 0.2rem; }
+  .chat-prose code {
+    background: rgba(0,0,0,0.06);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    font-size: 0.85em;
+  }
+  .chat-prose strong { font-weight: 600; }
+
+  /* Citation badges */
+  .citation-badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
+           bg-orange-100 text-orange-800 border border-orange-200 cursor-pointer
+           hover:bg-orange-200 transition-colors;
+  }
+}
+
+/* Typing indicator dots */
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.30s; }

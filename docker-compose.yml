@@ -1,0 +1,189 @@
+
+# ── Networks ──────────────────────────────────────────────────────────
+networks:
+  bis-internal:
+    driver: bridge
+  bis-external:
+    driver: bridge
+
+# ── Volumes ───────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  qdrant_data:
+  redis_data:
+  bis_documents:      # shared volume for uploaded PDFs
+  hf_cache:           # HuggingFace model cache
+
+# ═══════════════════════════════════════════════════════════════════════
+services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: bis-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-bis_assistant}
+      POSTGRES_USER:     ${DB_USER:-bisuser}
+      POSTGRES_PASSWORD: ${DB_PASS:-bispassword}
+      PGDATA:            /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    networks: [bis-internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-bisuser} -d ${DB_NAME:-bis_assistant}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Qdrant Vector DB ─────────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:v1.12.0
+    container_name: bis-qdrant
+    restart: unless-stopped
+
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    networks: [bis-internal]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo -n > /dev/tcp/127.0.0.1/6333"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Redis (conversation memory + cache) ──────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: bis-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks: [bis-internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── RAG Service (Python FastAPI) ─────────────────────────────────────
+  rag:
+    build:
+      context: ./rag
+      dockerfile: ../docker/Dockerfile.rag
+    container_name: bis-rag
+    restart: unless-stopped
+    environment:
+      GROQ_API_KEY:        ${GROQ_API_KEY:-}
+      OPENAI_API_KEY:      ${OPENAI_API_KEY:-}
+      OPENAI_API_BASE:     ${OPENAI_API_BASE:-https://api.openai.com/v1}
+      LLM_MODEL:           ${LLM_MODEL:-openai/gpt-oss-120b}
+      HF_EMBEDDING_MODEL:  ${HF_EMBEDDING_MODEL:-}
+      EMBEDDING_MODEL:     ${EMBEDDING_MODEL:-text-embedding-3-small}
+      QDRANT_URL:          http://qdrant:6333
+      QDRANT_API_KEY:      ${QDRANT_API_KEY:-}
+      QDRANT_COLLECTION:   ${QDRANT_COLLECTION:-bis_documents}
+      REDIS_URL:           redis://redis:6379
+      DATABASE_URL:        postgresql://${DB_USER:-bisuser}:${DB_PASS:-bispassword}@postgres:5432/${DB_NAME:-bis_assistant}
+      ENVIRONMENT:         production
+      LOG_LEVEL:           INFO
+      VECTOR_SIZE:         ${VECTOR_SIZE:-1024}
+    volumes:
+      - bis_documents:/app/documents
+      - hf_cache:/root/.cache/huggingface
+    depends_on:
+      postgres: { condition: service_healthy }
+      qdrant:   { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    ports:
+      - "8000:8000"
+    networks: [bis-internal]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ── Spring Boot Backend ───────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
+    container_name: bis-backend
+    restart: unless-stopped
+    environment:
+      DB_URL:          jdbc:postgresql://postgres:5432/${DB_NAME:-bis_assistant}
+      DB_USER:         ${DB_USER:-bisuser}
+      DB_PASS:         ${DB_PASS:-bispassword}
+      JWT_SECRET:      ${JWT_SECRET}
+      RAG_SERVICE_URL: http://rag:8000
+      SPRING_PROFILES_ACTIVE: production
+    depends_on:
+      postgres: { condition: service_healthy }
+      rag:      { condition: service_healthy }
+    ports:
+      - "8080:8080"
+    networks: [bis-internal, bis-external]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/actuator/health | grep -q UP || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 5
+
+  # ── Next.js Frontend ─────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
+        BACKEND_URL: ${BACKEND_URL:-http://backend:8080}
+    container_name: bis-frontend
+    restart: unless-stopped
+    environment:
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
+      BACKEND_URL: ${BACKEND_URL:-http://backend:8080}
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend: { condition: service_healthy }
+    networks: [bis-internal, bis-external]
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000', (r) => process.exit(r.statusCode < 400 ? 0 : 1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  # ── Nginx reverse proxy ──────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: bis-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/ssl:/etc/nginx/ssl:ro          # mount your certs here
+    depends_on:
+      frontend: { condition: service_healthy }
+      backend:  { condition: service_healthy }
+    networks: [bis-external]
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t && wget -qO- http://127.0.0.1/health > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3

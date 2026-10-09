@@ -1,0 +1,50 @@
+# BIS RAG Service — Python dependencies
+# Using minimum-version lower bounds instead of exact pins to avoid
+# dependency resolution conflicts between langchain, pydantic, and torch.
+
+fastapi>=0.111.0,<0.112
+uvicorn[standard]>=0.29.0,<0.30
+python-multipart>=0.0.9
+
+# ── LangChain 0.2.x ───────────────────────────────────────────
+langchain>=0.2.5,<0.3
+langchain-openai>=0.1.8,<0.2
+langchain-community>=0.2.5,<0.3
+langchain-core>=0.2.10,<0.3
+langchain-text-splitters>=0.2.2,<0.3
+langchain-qdrant>=0.1.2,<0.2
+
+# ── Vector DB ─────────────────────────────────────────────────
+qdrant-client>=1.9.1,<2.0
+
+# ── PDF processing ────────────────────────────────────────────
+pypdf>=4.2.0,<5
+pdfplumber>=0.11.0,<0.12
+pytesseract>=0.3.10
+Pillow>=10.3.0,<11
+
+# ── LLM client ────────────────────────────────────────────────
+openai>=1.30.1,<2
+
+# ── Translation & language detection ─────────────────────────
+deep-translator>=1.11.4
+langdetect>=1.0.9
+
+# ── Pydantic (let pip pick >=2.7.4 to satisfy langchain-qdrant) ──
+pydantic>=2.7.4,<3
+pydantic-settings>=2.2.1,<3
+
+# ── HTTP / utilities ──────────────────────────────────────────
+httpx>=0.27.0,<0.28
+python-dotenv>=1.0.1
+tenacity>=8.3.0,<9
+structlog>=24.1.0
+
+# ── Database / cache ──────────────────────────────────────────
+redis>=5.0.4,<6
+psycopg2-binary>=2.9.9
+
+# ── Local HuggingFace embeddings (CPU-only, no API key needed) ─
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.6.0+cpu
+sentence-transformers>=3.0.1,<4

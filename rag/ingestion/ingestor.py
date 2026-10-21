@@ -139,18 +139,22 @@ def _create_embedder():
     backend = settings.embedding_backend
 
     if backend == "huggingface":
+        import threading
         from sentence_transformers import SentenceTransformer
 
         class SentenceTransformerEmbeddings:
             def __init__(self, model_name: str):
                 self._model_name = model_name
                 self._model = None
+                self._lock = threading.Lock()
 
             def _get_model(self):
                 if self._model is None:
-                    log.info("Loading HuggingFace embedding model...", model=self._model_name)
-                    self._model = SentenceTransformer(self._model_name)
-                    log.info("HuggingFace embedding model loaded successfully", model=self._model_name)
+                    with self._lock:
+                        if self._model is None:
+                            log.info("Loading HuggingFace embedding model...", model=self._model_name)
+                            self._model = SentenceTransformer(self._model_name)
+                            log.info("HuggingFace embedding model loaded successfully", model=self._model_name)
                 return self._model
 
             def embed_documents(self, texts: list[str]) -> list[list[float]]:
@@ -201,7 +205,8 @@ def embed_batch(texts: list[str]) -> list[list[float]]:
 
 qdrant_sync = QdrantClient(
     url=settings.qdrant_url,
-    api_key=settings.qdrant_api_key,
+    api_key=settings.qdrant_api_key or None,
+    check_compatibility=False,
 )
 
 

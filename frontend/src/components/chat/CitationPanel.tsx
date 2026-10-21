@@ -36,6 +36,10 @@ export function CitationPanel({ citations, onClose }: Props) {
     return "Indian Standard";
   };
 
+  const validCitations = citations.filter(
+    (c) => c.relevanceScore == null || c.relevanceScore >= 0.40
+  );
+
   return (
     <>
       {/* Backdrop */}
@@ -55,7 +59,7 @@ export function CitationPanel({ citations, onClose }: Props) {
               Sources & Citations
             </h2>
             <span className="text-xs bg-bis-100 text-bis-800 px-1.5 py-0.5 rounded-full font-medium">
-              {citations.length}
+              {validCitations.length}
             </span>
           </div>
           <button
@@ -68,9 +72,15 @@ export function CitationPanel({ citations, onClose }: Props) {
 
         {/* Citation list */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {citations.map((c, i) => (
-            <CitationCard key={c.chunkId} citation={c} index={i + 1} />
-          ))}
+          {validCitations.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-8">
+              No citations meet the relevance threshold for this query.
+            </p>
+          ) : (
+            validCitations.map((c, i) => (
+              <CitationCard key={c.chunkId} citation={c} index={i + 1} />
+            ))
+          )}
         </div>
 
         {/* Footer */}

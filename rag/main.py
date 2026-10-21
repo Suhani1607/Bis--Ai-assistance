@@ -45,12 +45,23 @@ log = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("BIS RAG service starting up")
+    loop = asyncio.get_event_loop()
     try:
-        loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, ensure_collection)
         log.info("Qdrant collection ready")
     except Exception as e:
         log.warning("Could not ensure Qdrant collection on startup", error=str(e))
+
+    async def _preload_model():
+        try:
+            from pipeline import embeddings
+            if hasattr(embeddings, "_get_model"):
+                await loop.run_in_executor(None, embeddings._get_model)
+                log.info("Embedding model loaded and ready")
+        except Exception as e:
+            log.warning("Could not preload embedding model on startup", error=str(e))
+
+    asyncio.create_task(_preload_model())
     yield
 
 
@@ -244,6 +255,25 @@ async def ingest_url_endpoint(request: IngestRequest):
         raise
     except Exception as e:
         raise HTTPException(500, str(e))
+
+
+# ── Seed endpoint ─────────────────────────────────────────────
+
+class SeedRequest(BaseModel):
+    recreate: bool = False
+
+
+@app.post("/rag/seed")
+async def seed_endpoint(request: SeedRequest = SeedRequest()):
+    """Seed or reseed the vector store with official standards chunks."""
+    try:
+        from ingestion.seed_standards import seed
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, seed, request.recreate)
+        return {"status": "ok", "message": "Seeding completed successfully"}
+    except Exception as e:
+        log.error("Seeding failed", error=str(e))
+        raise HTTPException(500, f"Seeding failed: {e}")
 
 
 # ── Crawl endpoints (tracked jobs) ───────────────────────────

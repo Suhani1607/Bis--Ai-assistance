@@ -59,7 +59,7 @@ jwt:
 # ── RAG Service (Python FastAPI) ─────────────────────────────
 rag:
   service-url: ${RAG_SERVICE_URL:http://localhost:8000}
-  timeout-seconds: 60
+  timeout-seconds: ${RAG_TIMEOUT_SECONDS:180}
   max-results: 8
 
 # ── Actuator ─────────────────────────────────────────────────

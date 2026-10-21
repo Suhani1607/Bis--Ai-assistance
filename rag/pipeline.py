@@ -33,18 +33,22 @@ def _create_embeddings():
     backend = settings.embedding_backend
 
     if backend == "huggingface":
+        import threading
         from sentence_transformers import SentenceTransformer
 
         class SentenceTransformerEmbeddings:
             def __init__(self, model_name: str):
                 self._model_name = model_name
                 self._model = None
+                self._lock = threading.Lock()
 
             def _get_model(self):
                 if self._model is None:
-                    log.info("Loading HuggingFace embedding model...", model=self._model_name)
-                    self._model = SentenceTransformer(self._model_name)
-                    log.info("HuggingFace embedding model loaded successfully", model=self._model_name)
+                    with self._lock:
+                        if self._model is None:
+                            log.info("Loading HuggingFace embedding model...", model=self._model_name)
+                            self._model = SentenceTransformer(self._model_name)
+                            log.info("HuggingFace embedding model loaded successfully", model=self._model_name)
                 return self._model
 
             def embed_query(self, text: str) -> list[float]:
@@ -103,7 +107,8 @@ llm_stream = ChatOpenAI(
 
 qdrant = AsyncQdrantClient(
     url=settings.qdrant_url,
-    api_key=settings.qdrant_api_key,
+    api_key=settings.qdrant_api_key or None,
+    check_compatibility=False,
 )
 
 # ── System prompt ─────────────────────────────────────────────
@@ -119,15 +124,21 @@ Your purpose is to help manufacturers, MSMEs, consumers, and students with:
 - Identifying BIS-recognised testing laboratories
 - Interpreting clauses from IS documents
 
-RULES:
-1. Answer ONLY from the provided BIS document excerpts (context). Do not use external knowledge.
-2. Every factual claim MUST be followed by an inline citation in this exact format: [IS XXXX:YYYY, Clause Z.Z]
-   or [BIS Scheme-I Guidelines, Section N] — match the format in the retrieved chunks.
-3. If the context does not contain enough information, say so clearly and suggest the user visit
-   services.bis.gov.in or call BIS helpline 1800-11-4000.
-4. Respond in the same language as the user's query (English or Hindi).
-5. Be concise but complete. Use numbered steps for procedures.
-6. Never invent IS numbers, clause numbers, or scheme details.
+STRICT GROUNDING & CITATION RULES:
+1. Answer ONLY and EXCLUSIVELY from the provided RETRIEVED BIS DOCUMENTS (context).
+2. DO NOT use external pre-trained knowledge to supplement or invent technical requirements, design criteria, material specifications, safety valve parameters, or test limits.
+3. If the user asks for specific technical requirements, quality parameters, design limits, material grades, or test procedures for a product, and the retrieved excerpts DO NOT contain those detailed technical clauses (e.g. if the excerpts only mention the licensing procedure or standard title):
+   - You MUST EXPLICITLY STATE that the retrieved excerpts do not contain the specific technical requirements for that product.
+   - DO NOT fabricate, guess, or extrapolate technical details from outside knowledge.
+   - Advise the user to refer to the official standard document on services.bis.gov.in or contact the BIS helpline at 1800-11-4000.
+4. Every factual claim MUST be followed by an inline citation in this exact format: [IS XXXX:YYYY, Clause Z.Z]
+   or [BIS Scheme-I Guidelines, Section N] — matching the format in the retrieved chunks.
+5. NEVER cite or mention document chunks that do not directly pertain to the user's specific query. Do not cross-contaminate answers with unrelated standards (e.g., never cite gold hallmarking, packaged water, or electrical wiring when asked about cookers or other distinct products).
+6. If the context does not contain relevant information to answer the query, clearly state:
+   "I could not find relevant BIS documents for your query in the current knowledge base. Please visit services.bis.gov.in or call the BIS helpline at 1800-11-4000."
+7. Respond in the same language as the user's query (English or Hindi).
+8. Be concise, structured, and factual. Use bullet points or numbered steps where helpful.
+9. Never invent IS numbers, clause numbers, or scheme details.
 
 Retrieved context follows. Use it exclusively to answer the query.
 """
@@ -162,8 +173,8 @@ async def embed_query(text: str) -> list[float]:
 
 async def hybrid_search(query: str, top_k: int = 8) -> list[dict]:
     """
-    Qdrant search using dense vectors with fallback support for Qdrant versions.
-    Returns a list of payload dicts with score.
+    Qdrant search using dense vectors with score threshold filtering.
+    Returns a list of payload dicts with score >= min_relevance_score, sorted by score descending.
     """
     try:
         query_vector = await embed_query(query)
@@ -172,12 +183,18 @@ async def hybrid_search(query: str, top_k: int = 8) -> list[dict]:
         return []
 
     points = []
+    # If dummy deterministic embedding is used in dev, lower threshold to avoid dropping all hits
+    effective_threshold = (
+        0.05 if settings.embedding_backend == "dummy" else settings.min_relevance_score
+    )
+
     try:
         results = await qdrant.query_points(
             collection_name=settings.qdrant_collection,
             query=query_vector,
             using="dense",
             limit=top_k,
+            score_threshold=effective_threshold,
             with_payload=True,
         )
         points = getattr(results, "points", []) or []
@@ -188,9 +205,12 @@ async def hybrid_search(query: str, top_k: int = 8) -> list[dict]:
     chunks = []
     for hit in points:
         payload = getattr(hit, "payload", {}) or {}
+        score = float(getattr(hit, "score", 0.0))
+        if score < effective_threshold:
+            continue
         chunks.append({
             "chunk_id": str(getattr(hit, "id", "")),
-            "score": getattr(hit, "score", 0.0),
+            "score": score,
             "content": payload.get("content", ""),
             "is_number": payload.get("is_number"),
             "clause_ref": payload.get("clause_ref"),
@@ -198,6 +218,15 @@ async def hybrid_search(query: str, top_k: int = 8) -> list[dict]:
             "doc_type": payload.get("doc_type"),
             "page_number": payload.get("page_number"),
         })
+
+    # Sort descending by similarity score
+    chunks.sort(key=lambda x: x["score"], reverse=True)
+
+    # Limit to top rerank_top_k to prevent context dilution
+    max_k = settings.rerank_top_k or top_k
+    if len(chunks) > max_k:
+        chunks = chunks[:max_k]
+
     return chunks
 
 
@@ -324,6 +353,17 @@ async def stream_pipeline(request: RagRequest) -> AsyncGenerator[str, None]:
             query_en = translate(request.query, source="hi", target="en")
 
         chunks = await hybrid_search(query_en, top_k=request.max_results or settings.max_retrieval_results)
+
+        if not chunks:
+            fallback = (
+                "I could not find relevant BIS documents or standards for your query in the current knowledge base. "
+                "Please verify the Indian Standard on services.bis.gov.in or contact the BIS helpline at 1800-11-4000."
+            )
+            yield f"data: {json.dumps({'type': 'citations', 'data': []})}\n\n"
+            yield f"data: {json.dumps({'type': 'token', 'data': fallback})}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+
         context = build_context_block(chunks)
         messages = build_messages(query_en, context, request.history or [])
 

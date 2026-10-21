@@ -37,6 +37,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
   # ── Qdrant Vector DB ─────────────────────────────────────────────────
   qdrant:
@@ -86,7 +87,7 @@ services:
       OPENAI_API_KEY:      ${OPENAI_API_KEY:-}
       OPENAI_API_BASE:     ${OPENAI_API_BASE:-https://api.openai.com/v1}
       LLM_MODEL:           ${LLM_MODEL:-openai/gpt-oss-120b}
-      HF_EMBEDDING_MODEL:  ${HF_EMBEDDING_MODEL:-}
+      HF_EMBEDDING_MODEL:  ${HF_EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
       EMBEDDING_MODEL:     ${EMBEDDING_MODEL:-text-embedding-3-small}
       QDRANT_URL:          http://qdrant:6333
       QDRANT_API_KEY:      ${QDRANT_API_KEY:-}
@@ -95,8 +96,10 @@ services:
       DATABASE_URL:        postgresql://${DB_USER:-bisuser}:${DB_PASS:-bispassword}@postgres:5432/${DB_NAME:-bis_assistant}
       ENVIRONMENT:         production
       LOG_LEVEL:           INFO
-      VECTOR_SIZE:         ${VECTOR_SIZE:-1024}
+      VECTOR_SIZE:         ${VECTOR_SIZE:-384}
+      MIN_RELEVANCE_SCORE: ${MIN_RELEVANCE_SCORE:-0.40}
     volumes:
+      - ./rag:/app
       - bis_documents:/app/documents
       - hf_cache:/root/.cache/huggingface
     depends_on:
@@ -108,10 +111,10 @@ services:
     networks: [bis-internal]
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
-      interval: 20s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 90s
 
   # ── Spring Boot Backend ───────────────────────────────────────────────
   backend:
@@ -126,6 +129,7 @@ services:
       DB_PASS:         ${DB_PASS:-bispassword}
       JWT_SECRET:      ${JWT_SECRET}
       RAG_SERVICE_URL: http://rag:8000
+      RAG_TIMEOUT_SECONDS: ${RAG_TIMEOUT_SECONDS:-180}
       SPRING_PROFILES_ACTIVE: production
     depends_on:
       postgres: { condition: service_healthy }
@@ -135,10 +139,10 @@ services:
     networks: [bis-internal, bis-external]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/v1/actuator/health | grep -q UP || exit 1"]
-      interval: 30s
+      interval: 15s
       timeout: 10s
-      start_period: 90s
-      retries: 5
+      start_period: 120s
+      retries: 6
 
   # ── Next.js Frontend ─────────────────────────────────────────────────
   frontend:

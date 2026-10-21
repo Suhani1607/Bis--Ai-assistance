@@ -177,11 +177,131 @@ SAMPLE_STANDARDS = [
         source_url="https://services.bis.gov.in",
         page_number=3,
     ),
+
+    # ── IS 2347: Domestic Pressure Cookers — Scope, Materials & Construction ──
+    DocumentChunk(
+        chunk_id="is-2347-scope-materials",
+        content=(
+            "IS 2347:2017 Domestic Pressure Cookers — Specification (Fifth Revision). "
+            "Clause 1 & 4 Scope and Material Requirements: Covers domestic pressure cookers "
+            "operating at a normal working pressure of 1.0 kgf/cm² (approximately 100 kPa or 1 bar), with nominal capacities up to 15 litres. "
+            "All materials in contact with food shall be non-toxic, non-contaminating, and corrosion-resistant. "
+            "Body and lid materials shall be manufactured from: "
+            "1) Wrought aluminium or aluminium alloy sheet conforming to IS 21 or IS 737, with minimum body base thickness of 3.25 mm to prevent warping, localized overheating, and pit corrosion; "
+            "2) Austenitic stainless steel conforming to Grade 04Cr18Ni10 (AISI 304) of IS 6911; or "
+            "3) Composite / tri-ply construction having an aluminium core sandwiched between stainless steel layers. "
+            "Sealing gaskets must be made of food-grade synthetic or natural rubber conforming to IS 7466, resistant to boiling water, steam, vegetable oils, and animal fats. "
+            "Handles shall be manufactured from heat-insulating, flame-resistant material (such as phenolic moulding powder conforming to IS 1300) and rigidly fastened. "
+            "Domestic pressure cookers are under mandatory Quality Control Order (QCO) issued by DPIIT; "
+            "no pressure cooker may be manufactured, imported, or sold in India without the BIS ISI Mark under Scheme-I certification."
+        ),
+        is_number="IS 2347:2017",
+        clause_ref="Clause 1, 4 & QCO",
+        section_title="Domestic Pressure Cookers — Scope, Material Grades, Gasket & QCO Mandate",
+        doc_type="STANDARD",
+        source_url="https://services.bis.gov.in",
+        page_number=1,
+    ),
+
+    # ── IS 2347: Domestic Pressure Cookers — Safety Devices & GRS ──
+    DocumentChunk(
+        chunk_id="is-2347-safety-devices",
+        content=(
+            "IS 2347:2017 Domestic Pressure Cookers — Specification. "
+            "Clause 5 & 6 Safety Devices, Pressure Regulation and Safety Interlock Mechanism: "
+            "Domestic pressure cookers must incorporate a three-tier safety system: "
+            "1) Normal Pressure Regulating Device (Vent Weight / Weight Valve): Operates at the nominal cooking working pressure of 1.0 kgf/cm² (100 kPa), "
+            "releasing excess steam continuously and smoothly. "
+            "2) Secondary Safety Device (Safety Valve / Fusible Plug / Spring-Loaded Relief Valve): Operates automatically if the vent pipe or weight valve becomes clogged or obstructed. "
+            "The safety valve shall operate and release pressure within the safety threshold range between 1.3 kgf/cm² and 2.0 kgf/cm² (130 kPa to 200 kPa) before dangerous pressure can accumulate. "
+            "3) Gasket Release System (GRS): A tertiary fail-safe mechanism where an aperture in the lid rim allows the gasket to deform and release excessive internal pressure downwards in case both vent tube and safety valve fail. "
+            "4) Lid Safety Interlocking Mechanism: Cooker design shall prevent accidental removal or forced opening of the lid while internal pressure exceeds 4 kPa (0.04 kgf/cm²), protecting users from explosive opening and steam burns."
+        ),
+        is_number="IS 2347:2017",
+        clause_ref="Clause 5 & 6",
+        section_title="Three-Tier Safety Devices: Weight Valve, Safety Valve, GRS and Lid Interlock",
+        doc_type="STANDARD",
+        source_url="https://services.bis.gov.in",
+        page_number=3,
+    ),
+
+    # ── IS 2347: Domestic Pressure Cookers — Testing, Performance & Marking ──
+    DocumentChunk(
+        chunk_id="is-2347-testing-marking",
+        content=(
+            "IS 2347:2017 Domestic Pressure Cookers — Specification. "
+            "Clause 7, 8 & 9 Testing, Performance Requirements and Mandatory Markings: "
+            "1) Hydrostatic Proof Pressure Test: The cooker body and lid assembly shall withstand a hydrostatic proof pressure of not less than 2.0 kgf/cm² (200 kPa) "
+            "— twice the normal operating pressure — for at least 2 minutes without leakage, structural rupture, or permanent distortion. "
+            "2) Bursting Pressure Test: The cooker shall withstand a minimum hydraulic bursting pressure of 3.0 kgf/cm² (300 kPa) without rupture. "
+            "3) Operating Pressure Test: Tested on boiling water; the weight valve must maintain operating pressure within ±10% of 1.0 kgf/cm². "
+            "4) Handle Temperature Rise and Strength: Handle surface temperature shall not rise more than 55°C above ambient during prolonged operation. Handles must pass a cantilever load test without loosening, cracking, or damage. "
+            "5) Mandatory Markings: Each pressure cooker shall be clearly marked with manufacturer trade-mark, model number, nominal capacity in litres, "
+            "rated operating pressure (1.0 kgf/cm²), warning 'Read instructions before use — Do not open under pressure', and the BIS Standard Mark (ISI mark) with CML licence number."
+        ),
+        is_number="IS 2347:2017",
+        clause_ref="Clause 7, 8 & 9",
+        section_title="Proof Pressure, Bursting Strength, Operating Tests and ISI Markings",
+        doc_type="STANDARD",
+        source_url="https://services.bis.gov.in",
+        page_number=5,
+    ),
+
+    # ── IS 16102 (Part 1): Self-Ballasted LED Lamps — Safety Requirements ──
+    DocumentChunk(
+        chunk_id="is-16102-1-safety",
+        content=(
+            "IS 16102 (Part 1):2014 Self-Ballasted LED Lamps for General Lighting Services — Part 1: Safety Requirements. "
+            "Covers self-ballasted LED lamps with supply voltages up to 250 V a.c. 50 Hz and rated wattages up to 60 W for domestic and similar general lighting. "
+            "Key safety requirements: "
+            "1) Marking: Rated wattage, rated voltage, frequency, lamp cap designation (e.g., B22d or E27), luminous flux, and BIS CRS Registration Mark (R-number). "
+            "2) Insulation Resistance and Electric Strength: Minimum insulation resistance of 4 MΩ between live parts and accessible body parts; withstands 4000 V a.c. dielectric test. "
+            "3) Mechanical Strength: Lamp cap torque test (B22d caps withstand 3 Nm, E27 caps withstand 3 Nm) without loosening, cracking, or turning. "
+            "4) Resistance to Heat and Fire: Non-metallic parts insulating live parts must pass glow-wire test at 650°C and ball pressure test at 125°C. "
+            "5) Mandatory Certification: Self-ballasted LED lamps are covered under mandatory Compulsory Registration Scheme (CRS) notified by MeitY; "
+            "manufacturers must register on the BIS portal (crsbis.in) based on testing at a BIS-recognised laboratory."
+        ),
+        is_number="IS 16102 (Part 1):2014",
+        clause_ref="Clause 4, 6, 8 & CRS Mandate",
+        section_title="Self-Ballasted LED Lamps — Safety Requirements, Electric Strength and CRS Mandate",
+        doc_type="STANDARD",
+        source_url="https://services.bis.gov.in",
+        page_number=1,
+    ),
+
+    # ── IS 16102 (Part 2): Self-Ballasted LED Lamps — Performance Requirements ──
+    DocumentChunk(
+        chunk_id="is-16102-2-performance",
+        content=(
+            "IS 16102 (Part 2):2012 Self-Ballasted LED Lamps for General Lighting Services — Part 2: Performance Requirements. "
+            "Specifies performance and quality criteria for LED bulbs: "
+            "1) Lamp Wattage: Measured lamp wattage shall not exceed 110% of rated wattage. "
+            "2) Luminous Flux and Efficacy: Initial lumen output shall not be less than 90% of rated luminous flux. "
+            "3) Correlated Colour Temperature (CCT) and CRI: Standard CCT values: 2700 K (Warm White), 4000 K (Neutral White), and 6500 K (Cool Daylight). "
+            "Colour Rendering Index (CRI, Ra) shall not be less than 80 for indoor domestic applications. "
+            "4) Power Factor: Power factor shall be at least 0.90 for lamps above 5 W rating. "
+            "5) Life and Lumen Maintenance: Rated life minimum 15,000 to 25,000 hours with minimum 70% lumen maintenance (L70) at end of life."
+        ),
+        is_number="IS 16102 (Part 2):2012",
+        clause_ref="Clause 6, 7 & 8",
+        section_title="Self-Ballasted LED Lamps — Luminous Flux, CCT, CRI, Power Factor and Life",
+        doc_type="STANDARD",
+        source_url="https://services.bis.gov.in",
+        page_number=2,
+    ),
 ]
 
 
-def seed():
+def seed(recreate: bool = False):
     import uuid
+    from ingestion.ingestor import qdrant_sync
+    from config import settings
+    if recreate:
+        log.info("Deleting existing Qdrant collection for clean reseed...", name=settings.qdrant_collection)
+        try:
+            qdrant_sync.delete_collection(settings.qdrant_collection)
+        except Exception as e:
+            log.warning("Could not delete collection", error=str(e))
     log.info("Ensuring Qdrant collection exists...")
     ensure_collection()
     for c in SAMPLE_STANDARDS:
@@ -192,4 +312,5 @@ def seed():
 
 
 if __name__ == "__main__":
-    seed()
+    recreate_flag = "--recreate" in sys.argv
+    seed(recreate=recreate_flag)

@@ -54,7 +54,12 @@ export function ChatInput() {
     const cancel = streamMessage(
       { content, conversationId: activeConversationId ?? undefined, lang, stream: true },
       (token) => appendStreamingToken(token),
-      (citations) => setStreamingCitations(citations as Citation[]),
+      (citations) =>
+        setStreamingCitations(
+          (citations as Citation[]).filter(
+            (c) => c.relevanceScore == null || c.relevanceScore >= 0.40
+          )
+        ),
       async () => {
         // Streaming done — fetch the persisted message (has ID + citations)
         try {

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useCallback, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Search, X, ExternalLink, BookOpen,
@@ -33,8 +33,9 @@ const SCHEME_LABELS: Record<string, { label: string; color: string }> = {
   NONE:        { label: "Voluntary",  color: "bg-gray-100 text-gray-600 border-gray-200"       },
 };
 
-export default function StandardsPage() {
+function StandardsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
 
   const [query, setQuery]           = useState("");
@@ -57,6 +58,14 @@ export default function StandardsPage() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    const qParam = searchParams.get("q");
+    if (qParam && qParam.trim()) {
+      setQuery(qParam.trim());
+      doSearch(qParam.trim());
+    }
+  }, [searchParams, doSearch]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -305,5 +314,19 @@ function Detail({ label, value }: { label: string; value?: React.ReactNode }) {
       <p className="text-xs text-gray-400 mb-0.5">{label}</p>
       <div className="text-sm text-gray-800">{value}</div>
     </div>
+  );
+}
+
+export default function StandardsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <span className="w-8 h-8 border-2 border-bis-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <StandardsContent />
+    </Suspense>
   );
 }

@@ -60,6 +60,12 @@ SEED_DOCUMENTS = [
         "doc_type": "REGULATION",
         "is_number": None,
     },
+    {
+        "url": "https://services.bis.gov.in/php/BIS_2.0/bisconnect/knowyourstandards/is_details/2347",
+        "title": "IS 2347:2017 Domestic Pressure Cookers — Specification",
+        "doc_type": "IS_STANDARD",
+        "is_number": "IS 2347:2017",
+    },
 ]
 
 

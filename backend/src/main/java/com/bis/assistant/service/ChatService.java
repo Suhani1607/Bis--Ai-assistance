@@ -36,6 +36,7 @@ public class ChatService {
     private final ObjectMapper objectMapper;
 
     private static final int MAX_HISTORY_MESSAGES = 10;
+    private static final float MIN_CITATION_SCORE = 0.40f;
 
     // ── Process (blocking) ────────────────────────────────────
 
@@ -157,13 +158,17 @@ public class ChatService {
                     JsonNode items = node.path("data");
                     if (items.isArray()) {
                         for (JsonNode item : items) {
+                            float score = (float) item.path("score").asDouble();
+                            if (score < MIN_CITATION_SCORE) {
+                                continue;
+                            }
                             citations.add(RagChunk.builder()
                                 .chunkId(item.path("chunk_id").asText())
                                 .isNumber(item.hasNonNull("is_number") ? item.path("is_number").asText() : null)
                                 .clauseRef(item.hasNonNull("clause_ref") ? item.path("clause_ref").asText() : null)
                                 .sectionTitle(item.hasNonNull("section_title") ? item.path("section_title").asText() : null)
                                 .excerpt(item.hasNonNull("excerpt") ? item.path("excerpt").asText() : null)
-                                .score((float) item.path("score").asDouble())
+                                .score(score)
                                 .build());
                         }
                     }
@@ -309,8 +314,11 @@ public class ChatService {
     private List<Citation> persistCitations(Message msg, List<RagChunk> chunks) {
         if (chunks == null) return Collections.emptyList();
         List<Citation> citations = new ArrayList<>();
-        for (int i = 0; i < chunks.size(); i++) {
-            RagChunk chunk = chunks.get(i);
+        int sortOrder = 0;
+        for (RagChunk chunk : chunks) {
+            if (chunk.score() != null && chunk.score() < MIN_CITATION_SCORE) {
+                continue;
+            }
             Citation c = Citation.builder()
                 .message(msg)
                 .chunkId(chunk.chunkId())
@@ -319,7 +327,7 @@ public class ChatService {
                 .sectionTitle(chunk.sectionTitle())
                 .excerpt(chunk.excerpt())
                 .relevanceScore(chunk.score())
-                .sortOrder((short) i)
+                .sortOrder((short) (sortOrder++))
                 .build();
             citations.add(c);
         }
@@ -336,15 +344,17 @@ public class ChatService {
             .tokensUsed(msg.getTokensUsed())
             .latencyMs(msg.getLatencyMs())
             .citations(msg.getCitations() == null ? null :
-                msg.getCitations().stream().map(c -> CitationDto.builder()
-                    .chunkId(c.getChunkId())
-                    .isNumber(c.getIsNumber())
-                    .clauseRef(c.getClauseRef())
-                    .sectionTitle(c.getSectionTitle())
-                    .excerpt(c.getExcerpt())
-                    .relevanceScore(c.getRelevanceScore())
-                    .sortOrder(c.getSortOrder())
-                    .build()).collect(Collectors.toList()))
+                msg.getCitations().stream()
+                    .filter(c -> c.getRelevanceScore() == null || c.getRelevanceScore() >= MIN_CITATION_SCORE)
+                    .map(c -> CitationDto.builder()
+                        .chunkId(c.getChunkId())
+                        .isNumber(c.getIsNumber())
+                        .clauseRef(c.getClauseRef())
+                        .sectionTitle(c.getSectionTitle())
+                        .excerpt(c.getExcerpt())
+                        .relevanceScore(c.getRelevanceScore())
+                        .sortOrder(c.getSortOrder())
+                        .build()).collect(Collectors.toList()))
             .createdAt(msg.getCreatedAt())
             .build();
     }

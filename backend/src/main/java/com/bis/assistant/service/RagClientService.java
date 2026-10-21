@@ -27,7 +27,7 @@ public class RagClientService {
     public RagClientService(
             WebClient.Builder builder,
             @Value("${rag.service-url}") String ragUrl,
-            @Value("${rag.timeout-seconds:60}") long timeoutSeconds) {
+            @Value("${rag.timeout-seconds:180}") long timeoutSeconds) {
 
         this.webClient = builder
             .baseUrl(ragUrl)

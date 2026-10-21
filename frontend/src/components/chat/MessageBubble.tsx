@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ThumbsUp, ThumbsDown, Copy, CheckCheck, BookOpen } from "lucide-react";
@@ -26,7 +26,14 @@ export function MessageBubble({ message, isStreaming }: Props) {
   const displayContent =
     lang === "hi" && message.contentHi ? message.contentHi : message.content;
 
-  const hasCitations = (message.citations?.length ?? 0) > 0;
+  // Only consider citations that meet the relevance cutoff (drop low-confidence/negative scores)
+  const validCitations = useMemo(() => {
+    return (message.citations ?? []).filter(
+      (c) => c.relevanceScore == null || c.relevanceScore >= 0.40
+    );
+  }, [message.citations]);
+
+  const hasCitations = validCitations.length > 0;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(message.content);
@@ -135,7 +142,7 @@ export function MessageBubble({ message, isStreaming }: Props) {
         {/* Inline citation badges (quick preview) */}
         {!isUser && hasCitations && !isStreaming && (
           <div className="flex flex-wrap gap-1 px-1 mt-0.5">
-            {message.citations!.slice(0, 4).map((c, i) => (
+            {validCitations.slice(0, 4).map((c, i) => (
               <button
                 key={c.chunkId}
                 onClick={() => setShowCitations(true)}
@@ -145,12 +152,12 @@ export function MessageBubble({ message, isStreaming }: Props) {
                 {c.clauseRef && ` · ${c.clauseRef}`}
               </button>
             ))}
-            {message.citations!.length > 4 && (
+            {validCitations.length > 4 && (
               <button
                 onClick={() => setShowCitations(true)}
                 className="citation-badge bg-gray-100 text-gray-600 border-gray-200"
               >
-                +{message.citations!.length - 4} more
+                +{validCitations.length - 4} more
               </button>
             )}
           </div>
@@ -167,7 +174,7 @@ export function MessageBubble({ message, isStreaming }: Props) {
       {/* Citation side panel */}
       {showCitations && (
         <CitationPanel
-          citations={message.citations ?? []}
+          citations={validCitations}
           onClose={() => setShowCitations(false)}
         />
       )}

@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { BookOpen, ExternalLink, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { standards } from "@/lib/api";
 
 interface Props {
-  content: string;  // assistant message content to scan for IS numbers
+  content: string; // assistant message content to scan for IS numbers
 }
 
 interface ISHit {
@@ -13,22 +14,81 @@ interface ISHit {
   title?: string;
 }
 
-// Regex to find IS numbers mentioned in text
-const IS_RE = /\bIS\s+(\d{3,6}(?::\d{4})?)\b/gi;
+// Regex to capture IS numbers (e.g. IS 2347, IS 2347:2017, IS 302-2-3:2007)
+const IS_RE = /\bIS\s+(\d{3,6}(?:[-/]\d+(?:[-/]\d+)?)?(?::\d{4})?)\b/gi;
 
-function extractISNumbers(text: string): string[] {
+// Module-level in-memory cache across component mounts
+const catalogueCache = new Map<string, ISHit | null>();
+
+function extractUniqueBaseIS(text: string): { full: string; base: string }[] {
   const matches = [...text.matchAll(IS_RE)];
-  const nums = matches.map((m) => `IS ${m[1]}`);
-  return [...new Set(nums)].slice(0, 3); // max 3 distinct IS mentions
+  const seenBases = new Set<string>();
+  const results: { full: string; base: string }[] = [];
+
+  for (const m of matches) {
+    const full = `IS ${m[1]}`.toUpperCase();
+    const base = full.split(":")[0].trim();
+    if (!seenBases.has(base)) {
+      seenBases.add(base);
+      results.push({ full, base });
+    }
+    if (results.length >= 3) break; // limit to 3 distinct standards per message
+  }
+
+  return results;
 }
 
 export function StandardsSuggest({ content }: Props) {
   const [hits, setHits] = useState<ISHit[]>([]);
 
   useEffect(() => {
-    const nums = extractISNumbers(content);
-    if (nums.length === 0) return;
-    setHits(nums.map((n) => ({ isNumber: n })));
+    let isMounted = true;
+    const candidates = extractUniqueBaseIS(content);
+    if (candidates.length === 0) {
+      setHits([]);
+      return;
+    }
+
+    Promise.all(
+      candidates.map(async ({ full, base }) => {
+        if (catalogueCache.has(base)) {
+          return catalogueCache.get(base)!;
+        }
+
+        try {
+          const results = await standards.search(base);
+          if (Array.isArray(results) && results.length > 0) {
+            const exact = results.find(
+              (r) =>
+                r.isNumber.toUpperCase() === full ||
+                r.isNumber.toUpperCase() === base ||
+                full.startsWith(r.isNumber.toUpperCase()) ||
+                r.isNumber.toUpperCase().startsWith(base)
+            );
+            const match = exact || results[0];
+            const hit: ISHit = {
+              isNumber: match.isNumber || base,
+              title: match.title,
+            };
+            catalogueCache.set(base, hit);
+            return hit;
+          }
+        } catch {
+          // Ignore network errors
+        }
+
+        catalogueCache.set(base, null);
+        return null;
+      })
+    ).then((resolved) => {
+      if (isMounted) {
+        setHits(resolved.filter((h): h is ISHit => h !== null));
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, [content]);
 
   if (hits.length === 0) return null;
@@ -39,26 +99,39 @@ export function StandardsSuggest({ content }: Props) {
         <BookOpen size={11} /> Standards mentioned
       </p>
       {hits.map((hit) => (
-        <div key={hit.isNumber}
+        <div
+          key={hit.isNumber}
           className="flex items-center justify-between px-3 py-2 rounded-xl
-                     bg-orange-50 border border-orange-100 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="font-mono font-semibold text-bis-700 text-xs">
+                     bg-orange-50 border border-orange-100 text-sm"
+        >
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="font-mono font-semibold text-bis-700 text-xs shrink-0">
               {hit.isNumber}
             </span>
             {hit.title && (
-              <span className="text-gray-600 text-xs truncate max-w-[200px]">{hit.title}</span>
+              <span
+                title={hit.title}
+                className="text-gray-600 text-xs truncate flex-1 min-w-0"
+              >
+                {hit.title}
+              </span>
             )}
           </div>
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 ml-3">
             <Link
               href={`/standards?q=${encodeURIComponent(hit.isNumber)}`}
-              className="flex items-center gap-1 text-xs text-bis-600 hover:underline">
+              className="flex items-center gap-1 text-xs text-bis-600 hover:underline font-medium"
+            >
               Details <ArrowRight size={10} />
             </Link>
-            <a href="https://www.bis.gov.in" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600">
-              <ExternalLink size={10} />
+            <a
+              href="https://www.bis.gov.in"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Official BIS portal for ${hit.isNumber}`}
+              className="flex items-center text-gray-400 hover:text-gray-600 p-0.5"
+            >
+              <ExternalLink size={11} />
             </a>
           </div>
         </div>

@@ -17,16 +17,15 @@ class Settings(BaseSettings):
 
     # ── HuggingFace / local embeddings ───────────────────────
     # Set HF_EMBEDDING_MODEL to use sentence-transformers locally (no API key).
-    # Recommended: BAAI/bge-m3 (1024-dim, multilingual, English+Hindi).
-    # Leave blank to fall back to openai_api_key → OpenAI, or dummy hash fallback.
-    hf_embedding_model: str | None = Field(None, alias="HF_EMBEDDING_MODEL")
+    # Default: sentence-transformers/all-MiniLM-L6-v2 (384-dim, lightweight, fast CPU inference).
+    hf_embedding_model: str | None = Field("sentence-transformers/all-MiniLM-L6-v2", alias="HF_EMBEDDING_MODEL")
 
     # ── Qdrant ────────────────────────────────────────────────
     qdrant_url: str = Field("http://localhost:6333", alias="QDRANT_URL")
     qdrant_api_key: str | None = Field(None, alias="QDRANT_API_KEY")
     qdrant_collection: str = Field("bis_documents", alias="QDRANT_COLLECTION")
-    # Aligned with BAAI/bge-m3 (1024 dimensions). Change to 1536 if using text-embedding-3-small.
-    vector_size: int = Field(1024, alias="VECTOR_SIZE")
+    # Aligned with all-MiniLM-L6-v2 (384 dimensions). Change to 1536 if using text-embedding-3-small.
+    vector_size: int = Field(384, alias="VECTOR_SIZE")
 
     # ── Search weights ────────────────────────────────────────
     dense_weight: float = 1.0                      # semantic weight
@@ -37,6 +36,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
     max_retrieval_results: int = 8
     rerank_top_k: int = 4
+    min_relevance_score: float = Field(0.40, alias="MIN_RELEVANCE_SCORE")
 
     # ── Redis (conversation memory) ───────────────────────────
     redis_url: str = Field("redis://localhost:6379", alias="REDIS_URL")
